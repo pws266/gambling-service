@@ -1,0 +1,7 @@
+# Folders with compiled files
+bin/
+pkg/
+src/github.com/
+
+# Executables
+src/mainapp/mainapp
