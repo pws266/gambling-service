@@ -5,7 +5,7 @@ package endpoint
 import (
 	"fmt"
 	"net/http"
-	"strconv"
+	//	"strconv"
 	"strings"
 
 	database "mainapp/database"
@@ -26,25 +26,30 @@ func JoinTournament(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(r.Form["tournamentId"]) == 0 || len(r.Form["playerId"]) == 0 {
+	var (
+		tournamentName []string = r.Form["tournamentId"]
+
+		players []string = r.Form["playerId"]
+		backers []string = r.Form["backerId"]
+	)
+
+	if len(tournamentName[0]) == 0 || len(players[0]) == 0 {
 		http.Error(w, "Error: illegal parameters set in \"join\" endpoint", http.StatusBadRequest)
 		return
 	}
 
 	var (
-		tournamentId int
-		players      []string = r.Form["playerId"]
-		backers      []string = r.Form["backerId"]
+	//		tournamentId int
 	)
+	/*
+		// getting tournament ID
+		tournamentId, err = strconv.Atoi(r.Form["tournamentId"][0])
 
-	// getting tournament ID
-	tournamentId, err = strconv.Atoi(r.Form["tournamentId"][0])
-
-	if err != nil || tournamentId <= 0 {
-		http.Error(w, "Error: illegal \"tournamentId\" value", http.StatusBadRequest)
-		return
-	}
-
+		if err != nil || tournamentId <= 0 {
+			http.Error(w, "Error: illegal \"tournamentId\" value", http.StatusBadRequest)
+			return
+		}
+	*/
 	if len(backers) > 0 {
 		for _, backer := range backers {
 			if strings.Compare(backer, players[0]) == 0 {
@@ -54,7 +59,7 @@ func JoinTournament(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	deposit, fee, statusCode, err := database.SetupTournament(tournamentId, players[0], backers)
+	deposit, fee, statusCode, err := database.SetupTournament(tournamentName[0], players[0], backers)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error in DB processing: %s", err)
 		http.Error(w, errMsg, statusCode)

@@ -8,25 +8,28 @@ import (
 	aux "mainapp/aux"
 )
 
-// searches for tournament with specified ID
-// returns status code and error description
-func searchTournament(db *sql.DB, tournamentId uint) (int, error) {
-	var tourNumber int
+// searches for tournament with specified name
+// returns tournament ID, status code and error description
+func searchTournament(db *sql.DB, tournamentName string) (uint, int, error) {
+	var (
+		tourNumber   int
+		tournamentId uint
+	)
 
-	err := db.QueryRow("SELECT count(*) FROM tournament WHERE tournament_id=?", tournamentId).Scan(&tourNumber)
+	err := db.QueryRow("SELECT count(*), tournament_id FROM tournament WHERE name=?", tournamentName).Scan(&tourNumber, &tournamentId)
 
 	if err != nil {
-		queryErr := aux.CreateExternalError("searchTournament", "Unexpected error while searching tournament ID", err)
-		return 500, queryErr
+		queryErr := aux.CreateExternalError("searchTournament", "Unexpected error while searching tournament name", err)
+		return 0, 500, queryErr
 	}
 
 	// generating error if tournament with specified ID wasn't found
 	if tourNumber == 0 {
-		queryErr := aux.CreateError("searchTournament", "The tournament with specified ID isn't found in DB")
-		return 404, queryErr
+		queryErr := aux.CreateError("searchTournament", "The tournament with specified name isn't found in DB")
+		return 0, 404, queryErr
 	}
 
-	return 200, nil
+	return tournamentId, 200, nil
 }
 
 // reads specified tournament player and backers IDs and balance
@@ -147,7 +150,7 @@ func updateWinnersBalance(db *sql.DB, players *list.List, prize float64) (int, e
 }
 
 // returns status code and error description
-func SetResult(tournamentId uint, winners []aux.Winner) (int, error) {
+func SetResult(tournamentName string, winners []aux.Winner) (int, error) {
 	// getting DB descriptor, checking the conneection
 	db, err := getDB()
 
@@ -158,17 +161,19 @@ func SetResult(tournamentId uint, winners []aux.Winner) (int, error) {
 	defer db.Close()
 
 	// searching for tournament with specified ID
-	if statusCode, err := searchTournament(db, tournamentId); err != nil {
+	tournamentId, statusCode, err := searchTournament(db, tournamentName)
+
+	if err != nil {
 		return statusCode, err
 	}
 
 	var playerList list.List
 
-	for _, currentWinner := range winners {
+	for i, currentWinner := range winners {
 		playerList.Init()
 
 		// getting player/backers list
-		if statusCode, err := getPlayerAndBackers(db, tournamentId, winners[0], &playerList); err != nil {
+		if statusCode, err := getPlayerAndBackers(db, tournamentId, winners[i], &playerList); err != nil {
 			return statusCode, err
 		}
 

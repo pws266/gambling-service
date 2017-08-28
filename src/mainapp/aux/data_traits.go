@@ -15,6 +15,6 @@ type Winner struct {
 
 // tournament results description for reading via JSON
 type ResultTraits struct {
-	TournamentId uint     `json:"tournamentId"`
+	TournamentId string   `json:"tournamentId"`
 	Winners      []Winner `json:"winners"`
 }

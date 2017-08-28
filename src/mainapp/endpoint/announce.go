@@ -17,20 +17,18 @@ func AnnounceTournament(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if len(r.FormValue("tournamentId")) == 0 || len(r.FormValue("deposit")) == 0 {
+	var (
+		tournamentName string = r.FormValue("tournamentId")
+		depositStr     string = r.FormValue("deposit")
+	)
+
+	if len(tournamentName) == 0 || len(depositStr) == 0 {
 		http.Error(w, "Error: illegal \"announce\" endpoint parameters", http.StatusBadRequest)
 		return
 	}
 
-	// checking tournament ID value
-	tournament_id, err := strconv.Atoi(r.FormValue("tournamentId"))
-	if err != nil || tournament_id <= 0 {
-		http.Error(w, "Error: illegal \"tournamentId\" value", http.StatusBadRequest)
-		return
-	}
-
 	// checking deposit value
-	deposit, err := strconv.ParseFloat(r.FormValue("deposit"), 64)
+	deposit, err := strconv.ParseFloat(depositStr, 64)
 
 	if err != nil || deposit <= 0 {
 		http.Error(w, "Error: illegal \"deposit\" value", http.StatusBadRequest)
@@ -38,7 +36,7 @@ func AnnounceTournament(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// creating record in "tournament table"
-	if statusCode, err := database.CreateTournament(tournament_id, deposit); err != nil {
+	if statusCode, err := database.CreateTournament(tournamentName, deposit); err != nil {
 		errMsg := fmt.Sprintf("Error in DB processing: %s", err)
 		http.Error(w, errMsg, statusCode)
 
@@ -46,8 +44,7 @@ func AnnounceTournament(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// displaying data in CURL request: "OK" response is adding automatically
-	msg := fmt.Sprintf("  Added tournament: \n   TournamentID: %s\n   Deposit: %s\n",
-		r.FormValue("tournamentId"), r.FormValue("deposit"))
+	msg := fmt.Sprintf("  Added tournament: \n   TournamentID: %s\n   Deposit: %s\n", tournamentName, depositStr)
 
 	w.Write([]byte(msg))
 }

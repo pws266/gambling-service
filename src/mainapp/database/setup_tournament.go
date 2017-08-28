@@ -8,7 +8,7 @@ import (
 )
 
 // verifies if player presents in table "player"
-func checkPlayer(db *sql.DB, playerName string, fee float64, player *aux.Player) (int, error) {
+func checkPlayer(db *sql.DB, tournamentId uint, playerName string, fee float64, player *aux.Player) (int, error) {
 	// searching for specified player
 	err := db.QueryRow("SELECT player_id, balance FROM player WHERE name = ?", playerName).Scan(&player.ID, &player.Balance)
 
@@ -22,6 +22,16 @@ func checkPlayer(db *sql.DB, playerName string, fee float64, player *aux.Player)
 		feeErr := aux.CreateError("checkPlayer", errMsg)
 
 		return 500, feeErr
+	}
+
+	// searching for current player as a participant of specified tournament
+	var playerNumber int
+	err = db.QueryRow("SELECT count(*) FROM participant WHERE (tournament_id=? AND player_id=?)", tournamentId, player.ID).Scan(&playerNumber)
+
+	// generating error if current player is also added as participant
+	if playerNumber > 0 {
+		queryErr := aux.CreateError("checkPlayer", "The player with specified name is also participant of specified tournament")
+		return 400, queryErr
 	}
 
 	return 200, nil
@@ -56,7 +66,7 @@ var (
 )
 
 // insert player and backers into appropriate tables
-func insertInTables(db *sql.DB, tournamentId int, player []aux.Player, fee float64) (int, error) {
+func insertInTables(db *sql.DB, tournamentId uint, player []aux.Player, fee float64) (int, error) {
 	var currentRequest string
 
 	for i := range player {
@@ -92,7 +102,7 @@ func insertInTables(db *sql.DB, tournamentId int, player []aux.Player, fee float
 
 // assigns players and backers for specified tournament
 // returns tournament deposit, backing sum, http-status code and error description
-func SetupTournament(tournamentId int, playerId string, backerId []string) (float64, float64, int, error) {
+func SetupTournament(tournamentName string, playerId string, backerId []string) (float64, float64, int, error) {
 	// getting DB descriptor, checking the conneection
 	db, err := getDB()
 
@@ -104,6 +114,8 @@ func SetupTournament(tournamentId int, playerId string, backerId []string) (floa
 
 	// getting deposit value of specified tournament
 	var (
+		tournamentId uint
+
 		deposit float64
 		fee     float64
 
@@ -116,10 +128,10 @@ func SetupTournament(tournamentId int, playerId string, backerId []string) (floa
 	copy(playerNames[1:], backerId)
 
 	// getting tournament deposit
-	err = db.QueryRow("SELECT deposit FROM tournament WHERE tournament_id = ?", tournamentId).Scan(&deposit)
+	err = db.QueryRow("SELECT tournament_id, deposit FROM tournament WHERE name = ?", tournamentName).Scan(&tournamentId, &deposit)
 
 	if err != nil {
-		queryErr := aux.CreateExternalError("SetupTournament", "Can't find tournament with specified ID", err)
+		queryErr := aux.CreateExternalError("SetupTournament", "Can't find tournament with specified name", err)
 		return 0, 0, 404, queryErr
 	}
 
@@ -128,7 +140,7 @@ func SetupTournament(tournamentId int, playerId string, backerId []string) (floa
 
 	// checking presence of player/backers in database
 	for i, playerName := range playerNames {
-		statusCode, err := checkPlayer(db, playerName, fee, &players[i])
+		statusCode, err := checkPlayer(db, tournamentId, playerName, fee, &players[i])
 
 		if err != nil {
 			return deposit, fee, statusCode, err
